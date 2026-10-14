@@ -6,13 +6,17 @@ const iframe=document.createElement('iframe');
 iframe.style.cssText='position:absolute;width:1px;height:1px;border:0;opacity:0;pointer-events:none';
 iframe.title='Store143 API bridge';
 iframe.setAttribute('aria-hidden','true');
-const pending=new Map(); let ready=false, token='';
+const pending=new Map(); let ready=false, token='', bridgeWindow=null, bridgeOrigin='';
 const isGasOrigin=origin=>{try{const u=new URL(origin);return u.protocol==='https:'&&(u.hostname==='script.google.com'||u.hostname==='script.googleusercontent.com'||u.hostname.endsWith('.script.googleusercontent.com'));}catch{return false}};
 let readyResolve;const readyPromise=new Promise(r=>readyResolve=r);
 window.addEventListener('message',e=>{
- if(e.source!==iframe.contentWindow || !isGasOrigin(e.origin))return;
+ if(!isGasOrigin(e.origin))return;
  const p=e.data;if(!p||typeof p!=='object')return;
- if(p.kind==='store143-ready'){ready=true;readyResolve();return;}
+ if(p.kind==='store143-ready'){
+   if(!e.source || (bridgeWindow && e.source!==bridgeWindow))return;
+   bridgeWindow=e.source;bridgeOrigin=e.origin;ready=true;readyResolve();return;
+ }
+ if(!ready || e.source!==bridgeWindow || e.origin!==bridgeOrigin)return;
  if(p.kind!=='store143-response'||!pending.has(p.id))return;
  const q=pending.get(p.id);pending.delete(p.id);clearTimeout(q.timer);
  if(p.error)q.reject(Error(p.error));else if(!p.data?.ok)q.reject(Error(p.data?.error||'Apps Script error'));
